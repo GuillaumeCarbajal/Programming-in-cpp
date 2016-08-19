@@ -1,1 +1,1 @@
-myfirstprogram.o: myfirstprogram.cc fast.h
+myfirstprogram.o: myfirstprogram.cc fast.h random.h
