@@ -46,6 +46,11 @@ int main(){
 
   new_x_t = new_x;
 
+  // Display x and new_x values
+  for (size_t i = 0; i < size * input_dimension; i++) {
+    cout << x[i]<< ' ' << typeid(x[i]).name() << ' ' << new_x[i] << ' ' << typeid(new_x[i]).name() << '\n';
+  }
+
   // Initialize random numbers
   const Real mu = 0.;
   const Real sigma = 0.1;
