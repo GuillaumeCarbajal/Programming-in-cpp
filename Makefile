@@ -1,4 +1,4 @@
-SRC = myfirstprogram.cc
+SRC = mysecondprogram.cc
 OBJ = $(SRC:%.cc=%.o)
 DEPENDFILE = .depend
 BOOST =   /work/speech/tools/boost/boost_1_53_0
