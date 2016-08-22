@@ -1,6 +1,9 @@
 #include <memory>
 #include "fast.h"
 #include "random.h"
+#include "recurrency.h"
+#include "sigmoid.h"
+#include "function.h"
 #include <iostream>
 #include <typeinfo>
 #include <string>
@@ -24,8 +27,9 @@ int main(){
   Real *current_slice;
   current_slice = FastMalloc(word_dimension * size);
 
-  Real *b_t_;
-  b_t_ = FastMalloc(output_dimension * size * max_sequence_length);
+  Real *b_, *b_t_;
+  b_ = FastMalloc(output_dimension * size * max_sequence_length);
+  b_t_ = b_;
 
   Real *weights_;
   weights_ = FastMalloc(output_dimension * word_dimension);
@@ -36,7 +40,18 @@ int main(){
   const int GetOffset = output_dimension * max_batch_size;
   const int GetOffsetSlice = max_batch_size * word_dimension;
 
+  Real *delta_,
+       *delta_t_;
+  delta_ = FastMalloc(output_dimension * max_batch_size * max_sequence_length);
+  delta_t_ = delta_;
 
+
+  ActivationFunctionPointer f;
+  f = ActivationFunctionPointer(new Sigmoid());
+  std::move(f);
+  
+  Real *recurrent_weights_;
+  recurrent_weights_ = FastMalloc(output_dimension * output_dimension);
   // Fill x
   for (size_t i = 0; i < order * size; i++) {
     const int word_position = i * word_dimension;
@@ -66,7 +81,7 @@ int main(){
   new_x_t = new_x;
 
   // Fill new_x to obtain slice 1
-  for (size_t j = 0; j < 2; j++) {
+  for (size_t j = 0; j < order; j++) {
     cout << j << ' ' << "Next slice" << endl;
     for (size_t i = 0; i < size; i++) {
       const int word_position = word_dimension * j + order * i * word_dimension;
@@ -84,7 +99,33 @@ int main(){
                              size,
                              b_t_);
     // Display output b_t_
-    for (size_t k = 0; k < size * 2; k++) {
+    cout << "Ouput after FFNN" << endl;
+    for (size_t k = 0; k < size * order; k++) {
+      for (size_t l = 0; l < output_dimension; l++) {
+        cout << b_t_[l + k * output_dimension - j * GetOffset] << ' ';
+      }
+      cout << '\n';
+    }
+    
+    // Recurrency layer
+    if (b_t_ != b_) {
+      FastMatrixMatrixMultiply(1.0,
+                               recurrent_weights_,
+                               false,
+                               output_dimension,
+                               output_dimension,
+                               b_t_ - GetOffset,
+                               false,
+                               size,
+                               b_t_);
+    }
+    // Activation of reccurency layer
+    f->Evaluate(output_dimension, size, b_t_);
+    //// TO DO : declarer le destructeur
+
+    // Display output b_t_
+    cout << "Output after recurrency" << endl;
+    for (size_t k = 0; k < size * order; k++) {
       for (size_t l = 0; l < output_dimension; l++) {
         cout << b_t_[l + k * output_dimension - j * GetOffset] << ' ';
       }
