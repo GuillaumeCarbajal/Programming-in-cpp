@@ -1,2 +1,3 @@
 mysecondprogram.o: mysecondprogram.cc fast.h random.h recurrency.h \
  function.h sigmoid.h
+sigmoid.o: sigmoid.cc fast.h sigmoid.h function.h random.h

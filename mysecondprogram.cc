@@ -46,12 +46,12 @@ int main(){
   delta_t_ = delta_;
 
 
-  ActivationFunctionPointer f;
+  ActivationFunctionPointer f; 
   f = ActivationFunctionPointer(new Sigmoid());
-  std::move(f);
   
   Real *recurrent_weights_;
   recurrent_weights_ = FastMalloc(output_dimension * output_dimension);
+
   // Fill x
   for (size_t i = 0; i < order * size; i++) {
     const int word_position = i * word_dimension;
@@ -69,6 +69,10 @@ int main(){
                                       mu,
                                       sigma,
                                       weights_);
+  random.ComputeGaussianRandomNumbers(output_dimension * output_dimension,
+                                      mu,
+                                      sigma,
+                                      recurrent_weights_);
   // Display weights_ matrix
 
   for (size_t i = 0; i < output_dimension; i++) {
@@ -77,6 +81,17 @@ int main(){
     }
     cout << '\n';
   }
+  cout << '\n' << endl;
+
+  // Display recurrent_weights_ matrix
+  for (size_t i = 0; i < output_dimension; i++) {
+    for (size_t j = 0; j < output_dimension; j++) {
+      cout << recurrent_weights_[j + i * output_dimension] << ' ';
+    }
+    cout << '\n';
+  }
+  cout << '\n' << endl;
+
   // beginning of new_x
   new_x_t = new_x;
 
@@ -106,7 +121,7 @@ int main(){
       }
       cout << '\n';
     }
-    
+    cout << '\n' << endl;
     // Recurrency layer
     if (b_t_ != b_) {
       FastMatrixMatrixMultiply(1.0,
@@ -119,12 +134,21 @@ int main(){
                                size,
                                b_t_);
     }
+
+    // Display output b_t_
+    cout << "Output after recurrency" << endl;
+    for (size_t k = 0; k < size * order; k++) {
+      for (size_t l = 0; l < output_dimension; l++) {
+        cout << b_t_[l + k * output_dimension - j * GetOffset] << ' ';
+      }
+      cout << '\n';
+    }
     // Activation of reccurency layer
     f->Evaluate(output_dimension, size, b_t_);
     //// TO DO : declarer le destructeur
 
     // Display output b_t_
-    cout << "Output after recurrency" << endl;
+    cout << "Output after activation" << endl;
     for (size_t k = 0; k < size * order; k++) {
       for (size_t l = 0; l < output_dimension; l++) {
         cout << b_t_[l + k * output_dimension - j * GetOffset] << ' ';
@@ -135,12 +159,8 @@ int main(){
     b_t_ += GetOffset;
   }
 
-
-
-
-
-
-  // TO DO: finish the loop by adding the output after order computation
+  const Real *result = b_t_;
+  //return result;
 
 
 
