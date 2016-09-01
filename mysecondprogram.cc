@@ -19,6 +19,7 @@ int main(){
   const int output_dimension = 20;
   const int max_sequence_length = 9;
   const int max_batch_size = 4;
+  const Real learning_rate = 0.01;
 
   Real x[size * input_dimension];
 
@@ -31,7 +32,9 @@ int main(){
        *delta_t_,
        *new_delta_t_,
        *recurrent_weights_,
-       *momentum_weights_;
+       *momentum_weights_,
+       *momentum_recurrent_weights_,
+       *momentum_bias_;
 
   b_ = FastMalloc(output_dimension * max_batch_size * max_sequence_length * order_);
   delta_ = FastMalloc(output_dimension * max_batch_size * max_sequence_length * order_);
@@ -40,7 +43,8 @@ int main(){
   recurrent_weights_ = FastMalloc(output_dimension * output_dimension);
   bias_ = FastMalloc(output_dimension);
   momentum_weights_ = FastMalloc(output_dimension * word_dimension_);
-  /*momentum_bias_ = use_bias ? FastMalloc(output_dimension) : nullptr;*/
+  momentum_recurrent_weights_ = FastMalloc(output_dimension * output_dimension);
+  momentum_bias_ = FastMalloc(output_dimension);
   new_x_ = FastMalloc(input_dimension * max_batch_size * max_sequence_length); 
 
   const int GetOffset = output_dimension * max_batch_size;
@@ -95,12 +99,10 @@ int main(){
   for (size_t a = 0; a < 2; a++) {
     cout << "Input" << ' ' << a << endl;
     // Fill x
-    for (size_t i = 0; i < order_ * size; i++) {
-      const int word_position = i * word_dimension_;
-      cout << i << endl;
-      // Just fill x here using new_word_position
-      FastAddConstant(&x[word_position], word_dimension_, i + 1, &x[word_position]);
-    }
+    random.ComputeGaussianRandomNumbers(input_dimension * size,
+                                        10.,
+                                        3.,
+                                        x);
 
     // Fill new_x_ to obtain slice 1
     for (size_t j = 0; j < order_; j++) {
@@ -211,20 +213,102 @@ int main(){
                             b_t_, delta_t_);
     }
 
-    // Display  delta_t_
-    cout << "delta_" << endl;
-    for (size_t k = 0; k < 2 * size * order_; k++) {
-      for (size_t l = 0; l < output_dimension; l++) {
-        cout << delta_[l + k * output_dimension] << ' ';
-      }
-      cout << '\n';
-    }
 
     // let delta_t_ point to previous time step
     delta_t_ += GetOffset;
 
     // let new_x_t_ point to previous input x
     new_x_t_ -= GetOffsetSlice * order_;
+  }
+
+  // Display delta_
+  cout << "delta_" << endl;
+  for (size_t k = 0; k < 2 * size * order_; k++) {
+    for (size_t l = 0; l < output_dimension; l++) {
+      cout << delta_[l + k * output_dimension] << ' ';
+    }
+    cout << '\n';
+  }
+  // Display momentum_weights_
+  for (size_t i = 0; i < output_dimension; i++) {
+    for (size_t j = 0; j < word_dimension_; j++) {
+      cout << momentum_weights_[j + i * word_dimension_] << ' ';
+    }
+    cout << '\n';
+  }
+  cout << '\n' << endl;
+  // Display new_x_t_
+  cout << "new_x_t_" << endl;
+  for (size_t k = 0; k < 2 * size * order_; k++) {
+    for (size_t l = 0; l < word_dimension_; l++) {
+      cout << new_x_t_[l + k * word_dimension_] << ' ';
+    }
+    cout << '\n';
+  }
+
+  // UpdateWeights
+  for (size_t a = 0; a < 2; a++) {
+    for (size_t j = 0; j < order_; ++j) {
+      delta_t_ -= GetOffset;
+      if (bias_) {
+        for (size_t i = 0; i < size; ++i) {
+          FastMultiplyByConstantAdd(-learning_rate,
+                                    delta_t_ + i * output_dimension,
+                                    output_dimension,
+                                    momentum_bias_);
+        }
+      }
+      if (j == 0) {
+        FastMatrixMatrixMultiply(-learning_rate,
+                                 delta_t_, 
+                                 false,
+                                 output_dimension,
+                                 size,
+                                 new_x_t_, 
+                                 true,
+                                 word_dimension_,
+                                 momentum_weights_);
+      }
+      else {
+        FastMatrixMatrixMultiply(-learning_rate,
+                                 delta_t_,
+                                 false,
+                                 output_dimension,
+                                 size,
+                                 new_x_t_,
+                                 true,
+                                 word_dimension_,
+                                 momentum_weights_);
+
+        b_t_ += GetOffset;
+        FastMatrixMatrixMultiply(-learning_rate,
+                                 delta_t_,
+                                 false,
+                                 output_dimension,
+                                 size,
+                                 b_t_ - GetOffset,
+                                 true,
+                                 output_dimension,
+                                 momentum_recurrent_weights_);
+      } 
+      new_x_t_ += GetOffsetSlice;
+      // Display momentum_weights_
+      for (size_t i = 0; i < output_dimension; i++) {
+        for (size_t j = 0; j < word_dimension_; j++) {
+          cout << momentum_weights_[j + i * word_dimension_] << ' ';
+        }
+        cout << '\n';
+      }
+      cout << '\n' << endl;
+    }
+
+    b_t_ -= GetOffset * (order_ - 1);
+    const Real *result = b_t_;
+
+    // let b_t_ point to next time step
+    b_t_ += GetOffset * order_;
+
+    // new_x_t_ already points to next time step
   }
   return 0;
 }
