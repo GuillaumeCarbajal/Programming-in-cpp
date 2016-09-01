@@ -67,7 +67,29 @@ int main(){
                                       mu,
                                       sigma,
                                       recurrent_weights_);
+  random.ComputeGaussianRandomNumbers(output_dimension,
+                                      mu,
+                                      sigma,
+                                      bias_);
+  // Display weights_ matrix
+  for (size_t i = 0; i < output_dimension; i++) {
+    for (size_t j = 0; j < word_dimension_; j++) {
+      cout << weights_[j + i * word_dimension_] << ' ';
+    }
+    cout << '\n';
+  }
+  cout << '\n' << endl;
 
+  // Display recurrent_weights_ matrix
+  for (size_t i = 0; i < output_dimension; i++) {
+    for (size_t j = 0; j < output_dimension; j++) {
+      cout << recurrent_weights_[j + i * output_dimension] << ' ';
+    }
+    cout << '\n';
+  }
+  cout << '\n' << endl;
+
+  // Evaluate
 
   // TO DO: LOOP to make 2 times imput
   for (size_t a = 0; a < 2; a++) {
@@ -79,28 +101,6 @@ int main(){
       // Just fill x here using new_word_position
       FastAddConstant(&x[word_position], word_dimension_, i + 1, &x[word_position]);
     }
-
-    // Display weights_ matrix
-    for (size_t i = 0; i < output_dimension; i++) {
-      for (size_t j = 0; j < word_dimension_; j++) {
-        cout << weights_[j + i * word_dimension_] << ' ';
-      }
-      cout << '\n';
-    }
-    cout << '\n' << endl;
-
-    // Display recurrent_weights_ matrix
-    for (size_t i = 0; i < output_dimension; i++) {
-      for (size_t j = 0; j < output_dimension; j++) {
-        cout << recurrent_weights_[j + i * output_dimension] << ' ';
-      }
-      cout << '\n';
-    }
-    cout << '\n' << endl;
-
-
-    ///////////////////////////////////////////////////////
-
 
     // Fill new_x_ to obtain slice 1
     for (size_t j = 0; j < order_; j++) {
@@ -115,8 +115,9 @@ int main(){
 
       if (bias_) {
         for (size_t i = 0; i < size; ++i)
-          FastCopy(bias_, output_dimension, b_t_ + i * output_dimension + j * GetOffset);
+          FastCopy(bias_, output_dimension, b_t_ + i * output_dimension); 
       }
+
 
       FastMatrixMatrixMultiply(1.0,
                                weights_,
@@ -128,15 +129,6 @@ int main(){
                                size,
                                b_t_);
 
-      // Display output b_t_
-      cout << "Ouput after FFNN" << endl;
-      for (size_t k = 0; k < 2 * size * order_; k++) {
-        for (size_t l = 0; l < output_dimension; l++) {
-          cout << b_t_[l + k * output_dimension - j * GetOffset - a * GetOffset * order_] << ' ';
-        }
-        cout << '\n';
-      }
-      cout << '\n' << endl;
 
       // Recurrency layer
       if (j != 0) {
@@ -151,27 +143,11 @@ int main(){
                                  b_t_);
       }
 
-      // Display output b_t_
-      cout << "Output before activation" << endl;
-      for (size_t k = 0; k < 2 * size * order_; k++) {
-        for (size_t l = 0; l < output_dimension; l++) {
-          cout << b_t_[l + k * output_dimension - j * GetOffset - a * GetOffset * order_] << ' ';
-        }
-        cout << '\n';
-      }
 
       // Activation of reccurency layer
       f->Evaluate(output_dimension, size, b_t_);
       //// TO DO : declarer le destructeur
 
-      // Display output b_t_
-      cout << "Output after activation" << endl;
-      for (size_t k = 0; k < 2 * size * order_; k++) {
-        for (size_t l = 0; l < output_dimension; l++) {
-          cout << b_t_[l + k * output_dimension - j * GetOffset - a * GetOffset * order_] << ' ';
-        }
-        cout << '\n';
-      }
 
       // let new_x_t_ point to next slice
       new_x_t_ += GetOffsetSlice;
@@ -188,6 +164,67 @@ int main(){
 
     // let new_x_ point to next step for input x
     new_x_ += GetOffsetSlice * order_;
+  }
+
+  // Display output b_
+  cout << "output after 2 inputs" << endl;
+  for (size_t k = 0; k < 2 * size * order_; k++) {
+    for (size_t l = 0; l < output_dimension; l++) {
+      cout << b_[l + k * output_dimension] << ' ';
+    }
+    cout << '\n';
+  }
+
+  // ComputeDelta
+  // TO DO: LOOP to make 2 times imput
+  for (size_t a = 0; a < 2; a++) {
+    for(size_t i = 0; i < order_; ++i) {
+      // let b_t_ point to current order_ of current time step
+      b_t_ -= GetOffset;
+
+
+      if (i == 0) {
+        // delta_t_ points to current order_ of current time step
+        // here fill delta_t_ with random numbers
+        random.ComputeGaussianRandomNumbers(output_dimension * size,
+                                            mu,
+                                            sigma,
+                                            delta_t_);
+      }
+      else {
+        // let delta_t_ point to current order_ of current time step
+        delta_t_ += GetOffset; 
+        if (delta_t_ != delta_) {
+          // batch_size_t >= batch_size_{t+1}, so delta_{t+1}_ must be filled with 0
+          FastMatrixMatrixMultiply(1.0,
+                                   recurrent_weights_,
+                                   true,
+                                   output_dimension,
+                                   output_dimension,
+                                   delta_t_ - GetOffset,
+                                   false,
+                                   size,  // smaller batch_size suffices
+                                   delta_t_);
+        }
+      }
+      f->MultiplyDerivative(output_dimension, size,
+                            b_t_, delta_t_);
+    }
+
+    // Display  delta_t_
+    cout << "delta_" << endl;
+    for (size_t k = 0; k < 2 * size * order_; k++) {
+      for (size_t l = 0; l < output_dimension; l++) {
+        cout << delta_[l + k * output_dimension] << ' ';
+      }
+      cout << '\n';
+    }
+
+    // let delta_t_ point to previous time step
+    delta_t_ += GetOffset;
+
+    // let new_x_t_ point to previous input x
+    new_x_t_ -= GetOffsetSlice * order_;
   }
   return 0;
 }
