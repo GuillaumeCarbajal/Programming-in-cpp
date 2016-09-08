@@ -62,6 +62,11 @@ int main(){
   const Real mu = 0.;
   const Real sigma = 0.1;
 
+  // convert char to int
+  const char a = '7';
+  int b = a - '0';
+  cout << typeid(b).name() << '\n'
+       << b << endl;
 
   random.ComputeGaussianRandomNumbers(output_dimension * word_dimension_,
                                       mu,
@@ -75,7 +80,47 @@ int main(){
                                       mu,
                                       sigma,
                                       bias_);
-  // Display weights_ matrix
+  random.ComputeGaussianRandomNumbers(output_dimension,
+                                      10.,
+                                      3.,
+                                      delta_t_);
+  // Display delta_t_
+  for (size_t j = 0; j < output_dimension; j++) {
+    cout << delta_t_[j] << ' ';
+  }
+  cout << '\n' << endl;
+  // Display weights_
+  for (size_t j = 0; j < output_dimension; j++) {
+    cout << weights_[j] << ' ';
+  }
+  cout << '\n' << endl;
+  FastCopy(weights_, output_dimension, delta_t_);
+  // Display delta_t_
+  for (size_t j = 0; j < output_dimension; j++) {
+    cout << delta_t_[j] << ' ';
+  }
+  cout << '\n' << endl;
+
+  try {
+    int num1;
+    cout << "Enter first number:" << endl;
+    cin >> num1;
+    
+    int num2;
+    cout << "Enter second number:" << endl;
+    cin >> num2;
+
+    if (num2 == 0) {
+      throw 0;
+    }
+
+    cout << num1 / num2 << endl;
+
+
+  } catch(...) { // pass 0 into x !
+    cout << "you can't divide by" << endl;
+  }
+/*  // Display weights_ matrix
   for (size_t i = 0; i < output_dimension; i++) {
     for (size_t j = 0; j < word_dimension_; j++) {
       cout << weights_[j + i * word_dimension_] << ' ';
@@ -309,6 +354,6 @@ int main(){
     b_t_ += GetOffset * order_;
 
     // new_x_t_ already points to next time step
-  }
+  }*/
   return 0;
 }
